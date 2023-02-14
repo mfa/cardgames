@@ -1,0 +1,4 @@
+flask[async]
+redis
+uvicorn
+gunicorn
