@@ -8,9 +8,12 @@
 
 ### run locally
 
-local docker (without persistent storage)
+redis in local docker (without persistent storage)
 ```
 docker run --rm -p 6379:6379 --name redis -d redis
 ```
 
+run flask
+```
 REDIS_URL="redis://localhost:6379" uvicorn app.main:app --reload
+```
