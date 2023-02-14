@@ -1,6 +1,6 @@
-import os
 import datetime
 import json
+import os
 
 import redis.asyncio as redis
 
@@ -11,6 +11,9 @@ class Store:
 
     async def ping(self):
         return await self.r.ping()
+
+    async def keys(self):
+        return await self.r.keys()
 
     async def save(self, name, state):
         state["modified"] = datetime.datetime.utcnow().timestamp()

@@ -17,7 +17,9 @@ async def new():
     state = {"name": name, "players": [user]}
     await store.save(name, state)
 
-    resp = make_response(f"new game created: {name}<br/> you are: {user} (cookie set)")
+    resp = make_response(
+        f'new game created - link to add other players: <a href="/join/{name}">{name}</a><br/> you are: {user}'
+    )
     resp.set_cookie("user_id", user)
     return resp
 
@@ -31,7 +33,9 @@ async def join(name):
             state["players"].append(user)
         await store.save(name, state)
 
-        resp = make_response(f"{name} found, players: {state['players']}")
+        resp = make_response(
+            f"{name} found, players: {state['players']}<br/> you are: {user}"
+        )
         resp.set_cookie("user_id", user)
         return resp
     return "game not found"
@@ -47,13 +51,32 @@ async def update(name):
             state["counter"] = 1
         r = await store.save(name, state)
         print(r)
-        return f"{name} found, players: {state['players']}, counter: {state['counter']}, last_change: {state['modified']}"
+        user = request.cookies.get("user_id", str(uuid.uuid4()))
+        if user in state["players"]:
+            user_msg = "you are in this game"
+        else:
+            user_msg = f'<br/><a href="/join/{name}">join this game</a>'
+
+        return (
+            f"{name} found, players: {state['players']}<br/>counter: {state['counter']}, last_change: {state['modified']}<br/>"
+            + user_msg
+        )
     return "game not found"
 
 
 @wsgi_app.route("/status")
 async def status():
     return "redis ping: " + str(await store.ping())
+
+
+@wsgi_app.route("/games")
+async def games():
+    games = [i.decode()[5:] for i in await store.keys()]
+    return (
+        "games found:<br/><ul><li>"
+        + "<li>".join([f'<a href="/{i}">{i}</a>' for i in games])
+        + '</ul><br/>create a <a href="/new">new game</a>'
+    )
 
 
 @wsgi_app.route("/")
