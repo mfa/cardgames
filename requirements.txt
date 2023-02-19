@@ -1,4 +1,4 @@
-flask[async]
-redis
-uvicorn
+aiofiles
+fastapi
 gunicorn
+uvicorn

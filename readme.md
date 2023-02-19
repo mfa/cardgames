@@ -8,12 +8,25 @@
 
 ### run locally
 
-redis in local docker (without persistent storage)
+run fastapi
 ```
-docker run --rm -p 6379:6379 --name redis -d redis
+uvicorn app.main:app --reload
 ```
 
-run flask
+
+### deploy to fly.io
+
+(example for instance maintained by @mfa)
+
+create volume:
 ```
-REDIS_URL="redis://localhost:6379" uvicorn app.main:app --reload
+flyctl volumes create cardgames_data --app floral-wave-1444 --region ams --size 1
+```
+
+initially create folder for data:
+```
+# ssh to instance
+fly ssh console
+# create folder
+mkdir -p /data/store
 ```

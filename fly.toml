@@ -8,6 +8,10 @@ kill_timeout = 5
 [build]
   builtin = "python"
 
+[[mounts]]
+  destination = "/data"
+  source = "cardgames_data"
+
 [env]
 
 [experimental]
