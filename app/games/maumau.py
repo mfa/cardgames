@@ -1,14 +1,13 @@
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
-from typing import List
 
 
 @dataclass
 class Player:
     id: str
-    cards: List[str]
-    in_flow: str | None = None
+    cards: list[str]
+    in_flow: list[str] = field(default_factory=list)
 
 
 class Game:
@@ -16,6 +15,7 @@ class Game:
     suites = ["H", "D", "S", "C"]
 
     players = {}
+    next_player_take_cards = 0
 
     def __init__(self, name, players):
         self.name = name
@@ -74,42 +74,73 @@ class Game:
         player = self.players[self.current_player]
         cards = player.cards
         if action == "keep_card" and player.in_flow:
-            card = player.in_flow
-            cards.append(player.in_flow)
+            _cards = player.in_flow
+            cards.extend(player.in_flow)
             player.in_flow = None
             player.cards = cards
             self.current_player = self.next_player()
-            return {"msg": f"you kept {card}"}
+            return {"msg": f"you kept {_cards}"}
         if action == "play_card":
-            if player.in_flow:
+            if card and not card.endswith("-7") and self.next_player_take_cards:
+                return {
+                    "msg": "on a 7 you are only allowed to play a 7, 'take_cards' otherwise"
+                }
+            if len(player.in_flow) == 1:
                 card = player.in_flow
+            elif len(player.in_flow) > 1 and card is None:
+                return {"msg": "specify card to play"}
+            elif card in player.in_flow:
+                pass
             else:
                 if card not in player.cards:
                     return {"msg": f"card is not on your hand: {card}"}
             if self.check_card(card):
                 if player.in_flow:
-                    self.playing_stack.append(player.in_flow)
-                    player.in_flow = None
+                    self.playing_stack.append(card)
+                    player.in_flow.pop(player.in_flow.index(card))
+                    if player.in_flow:
+                        cards.extend(player.in_flow)
+                    player.in_flow = []
                 else:
                     self.playing_stack.append(cards.pop(cards.index(card)))
-                player.cards = cards
                 if self.check_win():
                     winner = self.check_win()["winner"]
                     return {"msg": f"{winner} has won!"}
+
+                if card.endswith("-7"):
+                    self.next_player_take_cards += 2
+                if card.endswith("-8"):
+                    # jump over next player
+                    self.current_player = self.next_player()
+
                 self.current_player = self.next_player()
                 return {"msg": f"card played: {card}"}
             else:
                 if player.in_flow:
-                    cards.append(player.in_flow)
+                    cards.extend(player.in_flow)
                     player.in_flow = None
                     player.cards = cards
                     self.current_player = self.next_player()
                     return {"msg": f"card {card} is not allowed, move to your cards"}
                 return {"msg": "card is not allowed"}
-        elif action == "take_card":
-            card = list(self.pick_cards(1))[0]
-            self.players[self.current_player].in_flow = card
-            return {"msg": f"you draw {card}, 'play_card' or 'keep_card'?"}
+        elif action.startswith("take_card"):
+            num_cards = 1
+            if self.next_player_take_cards > 0:
+                num_cards = self.next_player_take_cards
+                self.next_player_take_cards = 0
+
+            _cards = list(self.pick_cards(num_cards))
+            self.players[self.current_player].in_flow = _cards
+            _playable = False
+            for card in _cards:
+                if self.check_card(card):
+                    _playable = True
+            if _playable:
+                return {"msg": f"you draw {_cards}, 'play_card' or 'keep_card'?"}
+            cards.extend(_cards)
+            player.cards = cards
+            self.current_player = self.next_player()
+            return {"msg": f"you draw {_cards}"}
         return {"msg": "allowed actions: 'play_card', 'take_card'"}
 
     def check_win(self):
