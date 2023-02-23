@@ -1,5 +1,6 @@
 import random
 from dataclasses import dataclass
+from functools import cache
 from typing import List
 
 
@@ -7,6 +8,7 @@ from typing import List
 class Player:
     id: str
     cards: List[str]
+    in_flow: str | None = None
 
 
 class Game:
@@ -15,13 +17,7 @@ class Game:
 
     players = {}
 
-    def __init__(self):
-        pass
-
-    def load(self, name):
-        pass
-
-    def new(self, name, players):
+    def __init__(self, name, players):
         self.name = name
         self.stack = random.sample(
             list(self.create_stack()), k=len(self.deck) * len(self.suites)
@@ -36,6 +32,11 @@ class Game:
         random.shuffle(self.player_list)
         self.current_player = self.player_list[0]
 
+    @property
+    @cache
+    def allowed_cards(self):
+        return list(self.create_stack())
+
     def create_stack(self):
         for suite in self.suites:
             for card in self.deck:
@@ -43,13 +44,79 @@ class Game:
 
     def pick_cards(self, num):
         for i in range(num):
-            yield self.stack.pop()
+            if not self.stack:
+                self.stack = self.playing_stack[:-1]
+                random.shuffle(self.stack)
+                self.playing_stack = [self.playing_stack[-1]]
+            card = self.stack.pop()
+            yield card
 
-    def status(self):
-        print("stack", self.stack)
-        for k, v in self.players.items():
-            print(k, v)
-        print("playing stack", self.playing_stack)
+    def status(self, player):
+        d = {
+            "players": self.player_list,
+            "current_player": self.current_player,
+            "deck_top": self.playing_stack[-1],
+            "your_turn": True if self.current_player == player else False,
+            "your_deck": self.players[player].cards,
+        }
+        if self.check_win():
+            d["winner"] = self.check_win()["winner"]
+        return d
+
+    def action(self, player, action, card=None):
+        if player != self.current_player:
+            return {"msg": f"Not your turn. current turn is: {self.current_player}"}
+
+        if self.check_win():
+            winner = self.check_win()["winner"]
+            return {"msg": f"game over, winner: {winner}"}
+
+        player = self.players[self.current_player]
+        cards = player.cards
+        if action == "keep_card" and player.in_flow:
+            card = player.in_flow
+            cards.append(player.in_flow)
+            player.in_flow = None
+            player.cards = cards
+            self.current_player = self.next_player()
+            return {"msg": f"you kept {card}"}
+        if action == "play_card":
+            if player.in_flow:
+                card = player.in_flow
+            else:
+                if card not in player.cards:
+                    return {"msg": f"card is not on your hand: {card}"}
+            if self.check_card(card):
+                if player.in_flow:
+                    self.playing_stack.append(player.in_flow)
+                    player.in_flow = None
+                else:
+                    self.playing_stack.append(cards.pop(cards.index(card)))
+                player.cards = cards
+                if self.check_win():
+                    winner = self.check_win()["winner"]
+                    return {"msg": f"{winner} has won!"}
+                self.current_player = self.next_player()
+                return {"msg": f"card played: {card}"}
+            else:
+                if player.in_flow:
+                    cards.append(player.in_flow)
+                    player.in_flow = None
+                    player.cards = cards
+                    self.current_player = self.next_player()
+                    return {"msg": f"card {card} is not allowed, move to your cards"}
+                return {"msg": "card is not allowed"}
+        elif action == "take_card":
+            card = list(self.pick_cards(1))[0]
+            self.players[self.current_player].in_flow = card
+            return {"msg": f"you draw {card}, 'play_card' or 'keep_card'?"}
+        return {"msg": "allowed actions: 'play_card', 'take_card'"}
+
+    def check_win(self):
+        for player_id in self.players:
+            player = self.players[player_id]
+            if not player.cards:
+                return {"winner": player.id}
 
     def next_player(self):
         cur = self.player_list.index(self.current_player)
@@ -58,35 +125,9 @@ class Game:
             cur = 0
         return self.player_list[cur]
 
-    def next_turn(self):
-        print(self.current_player)
-        print("playing stack:", self.playing_stack[-1])
-        cards = self.players[self.current_player].cards
-        print(cards)
-        while True:
-            card = input("which card: ")
-            if card in cards:
-                # check if card is allowed
-                if self.check_card(card):
-                    self.playing_stack.append(cards.pop(cards.index(card)))
-                    break
-                print("card is not allowed")
-            else:
-                if card == "N":
-                    card = list(self.pick_cards(1))[0]
-                    cards.append(card)
-                    print("new card: ", card)
-                    if self.check_card(card):
-                        x = input("play new card [y/n]?")
-                        if x == "y":
-                            self.playing_stack.append(cards.pop(cards.index(card)))
-                    break
-                else:
-                    print("invalid card")
-        self.players[self.current_player].cards = cards
-        self.current_player = self.next_player()
-
     def check_card(self, card):
+        if card not in self.allowed_cards:
+            return None
         s, d = card.split("-")
         _s, _d = self.playing_stack[-1].split("-")
         if s == _s or d == _d:
