@@ -18,11 +18,10 @@ class Store:
         return self.path.glob("*")
 
     async def save(self, name, game):
+        print(f"save {name}")
         ts = datetime.datetime.utcnow().timestamp()
         game.modified = ts
         self.game_states[name] = game
-
-        print(game)
 
         g = game.__dict__
         # save serialized state, not instance
@@ -44,10 +43,14 @@ class Store:
 
     async def load(self, name):
         if name in self.game_states:
+            print(f"local load: {name}")
             return self.game_states.get(name)
 
         fn = self.path / name / "default.json"
         if fn.exists():
+            print(f"disc load: {name}")
             async with aiofiles.open(fn, "r") as fp:
-                return json.loads(await fp.read())
+                data = json.loads(await fp.read())
+                self.game_states[name] = data
+                return data
         return

@@ -46,6 +46,8 @@ async def load_game(name: str):
                     g = MauMau(game.name, game.players)
                     g.load(game.state)
                     game.instance = g
+                    # maybe unsafe!
+                    store.game_states[name] = game
             return game
         return _game
 
