@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 from pathlib import Path
@@ -23,11 +24,12 @@ class Store:
         game.modified = ts
         self.game_states[name] = game
 
-        g = game.__dict__
+        g = game.serialize()
+        print(g)
         # save serialized state, not instance
-        if g["instance"]:
+        if game.instance:
             g["state"] = game.instance.serialize()
-            del g["instance"]
+            g["instance"] = None
 
         _path = self.path / name
         _path.mkdir(exist_ok=True, parents=True)
@@ -58,3 +60,6 @@ class Store:
     def set(self, name, attribute, value):
         self.game_states[name][attribute] = value
         return
+
+    def get(self, name, attribute):
+        return self.game_states[name].get(attribute)

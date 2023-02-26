@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %} - {{ name }}{% endblock %}
+{% block content %}
+<h3 class="is-size-3">Active game: {{ name }}</h3>
+
+
+<h4 class="is-size-4">Players:</h4>
+<ul>
+{% for p in state.players %}
+<li>{{ p }}
+  {% if p == you %}<strong>[YOU]</strong>{% endif %}
+  {% if p == state.current_player %}<strong>[current turn]</strong>{% endif %}
+  {% for i in range(state.num_cards[p]) %}<img src="/assets/backs/back08.svg" width="25px"/ >{% endfor %}
+{% endfor %}
+
+  {% if state.winner %}
+  <hr>
+  <h3 class="is-size-3">Game over - Winner: {{ state.winner }}</h3>
+  {% endif %}
+  
+<hr>
+  <h4 class="is-size-4">Top on deck</h4>
+<img src="/assets/white/{{ state.deck_top|to_svg }}" width="100px"/>
+
+  <hr>
+
+  <h4 class="is-size-4">Your Cards</h4>
+  {% for card in state.your_deck %}
+    {% if not state.your_in_flow %}
+      <a href="/{{ name }}?action=play_card&card={{ card }}">
+    {% endif %}
+    <img src="/assets/white/{{ card|to_svg }}" width="100px"/>
+  {% if not state.your_in_flow %}
+    </a>
+  {% endif %}
+  {% endfor %}
+  </ul>
+(click on card to play)
+
+  <hr>
+  <h4 class="is-size-4">Commands</h4>
+  <a class="button is-primary" href="/{{ name }}">poll/update</a>
+  {% if not state.your_in_flow %}
+  <a class="button is-primary" href="/{{ name }}?action=take_card">take card</a>
+  {% else %}
+    {% for card in state.your_in_flow %}
+      <a href="/{{ name }}?action=play_card&card={{ card }}">
+        <img src="/assets/white/{{ card|to_svg }}" width="100px"/>
+      </a>
+    {% endfor %}
+    <a class="button is-primary" href="/{{ name }}?action=keep_card">keep card</a>
+  {% endif %}
+  <hr>
+  {{ msg }}
+  <hr>
+{{ state }}
+
+
+{% endblock %}

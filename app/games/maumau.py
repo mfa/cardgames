@@ -86,58 +86,80 @@ class MauMau:
             "players": self.player_list,
             "current_player": self.current_player,
             "deck_top": self.playing_stack[-1],
+            "num_cards": {i: len(self.players[i].cards) for i in self.players.keys()},
         }
         if player and player in self.players:
             d.update(
                 {
                     "your_turn": True if self.current_player == player else False,
                     "your_deck": self.players[player].cards,
+                    "your_in_flow": self.players[player].in_flow,
                 }
             )
         if self.check_win():
             d["winner"] = self.check_win()["winner"]
         return d
 
-    def action(self, player, action, card=None):
-        if player != self.current_player:
+    def player_save(self, player, cards, in_flow):
+        self.players[player].cards = cards
+        self.players[player].in_flow = in_flow
+
+    def action(self, player_id, action, card=None):
+        if player_id != self.current_player:
             return {"msg": f"Not your turn. current turn is: {self.current_player}"}
 
         if self.check_win():
             winner = self.check_win()["winner"]
             return {"msg": f"game over, winner: {winner}"}
 
-        player = self.players[self.current_player]
-        cards = player.cards
-        if action == "keep_card" and player.in_flow:
-            _cards = player.in_flow
-            cards.extend(player.in_flow)
-            player.in_flow = None
-            player.cards = cards
+        _player = self.players[player_id]
+        cards = _player.cards
+        in_flow = _player.in_flow
+
+        # debug
+        if in_flow:
+            print("---")
+            print(in_flow)
+            print([True for i in in_flow if i in cards])
+            in_flow = [i for i in in_flow if i not in cards]
+            print("---")
+            self.player_save(player_id, cards, in_flow)
+
+        if action == "keep_card" and in_flow:
+            _cards = in_flow
+            cards.extend(in_flow)
+            in_flow = []
             self.current_player = self.next_player()
+            self.player_save(player_id, cards, in_flow)
             return {"msg": f"you kept {_cards}"}
         if action == "play_card":
             if card and not card.endswith("-7") and self.next_player_take_cards:
                 return {
-                    "msg": "on a 7 you are only allowed to play a 7, 'take_cards' otherwise"
+                    "msg": "on a 7 you are only allowed to play a 7, 'take_card' otherwise"
                 }
-            if len(player.in_flow) == 1:
-                card = player.in_flow
-            elif len(player.in_flow) > 1 and card is None:
-                return {"msg": "specify card to play"}
-            elif card in player.in_flow:
-                pass
+            if in_flow:
+                if len(in_flow) == 1:
+                    card = in_flow[0]
+                elif len(in_flow) > 1 and card is None:
+                    return {
+                        "msg": "specify in to play",
+                    }
+                elif card in in_flow:
+                    pass
             else:
-                if card not in player.cards:
+                if card not in cards:
                     return {"msg": f"card is not on your hand: {card}"}
             if self.check_card(card):
-                if player.in_flow:
+                if in_flow:
                     self.playing_stack.append(card)
-                    player.in_flow.pop(player.in_flow.index(card))
-                    if player.in_flow:
-                        cards.extend(player.in_flow)
-                    player.in_flow = []
+                    in_flow.pop(in_flow.index(card))
+                    if in_flow:
+                        # more than one card
+                        cards.extend(in_flow)
+                    in_flow = []
                 else:
                     self.playing_stack.append(cards.pop(cards.index(card)))
+
                 if self.check_win():
                     winner = self.check_win()["winner"]
                     return {"msg": f"{winner} has won!"}
@@ -149,32 +171,40 @@ class MauMau:
                     self.current_player = self.next_player()
 
                 self.current_player = self.next_player()
+                self.player_save(player_id, cards, in_flow)
                 return {"msg": f"card played: {card}"}
             else:
-                if player.in_flow:
-                    cards.extend(player.in_flow)
-                    player.in_flow = None
-                    player.cards = cards
+                if in_flow:
+                    cards.extend(in_flow)
+                    in_flow = []
                     self.current_player = self.next_player()
+                    self.player_save(player_id, cards, in_flow)
                     return {"msg": f"card {card} is not allowed, move to your cards"}
                 return {"msg": "card is not allowed"}
         elif action.startswith("take_card"):
+            if in_flow:
+                return {
+                    "msg": "either {play_card} or {keep_card}",
+                }
             num_cards = 1
             if self.next_player_take_cards > 0:
                 num_cards = self.next_player_take_cards
                 self.next_player_take_cards = 0
 
             _cards = list(self.pick_cards(num_cards))
-            self.players[self.current_player].in_flow = _cards
             _playable = False
             for card in _cards:
                 if self.check_card(card):
                     _playable = True
             if _playable:
-                return {"msg": f"you draw {_cards}, 'play_card' or 'keep_card'?"}
+                in_flow = _cards
+                self.player_save(player_id, cards, in_flow)
+                return {
+                    "msg": f"you draw {_cards}, 'play_card' or 'keep_card'?",
+                }
             cards.extend(_cards)
-            player.cards = cards
             self.current_player = self.next_player()
+            self.player_save(player_id, cards, in_flow)
             return {"msg": f"you draw {_cards}"}
         return {"msg": "allowed actions: 'play_card', 'take_card'"}
 

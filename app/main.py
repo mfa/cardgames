@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-from fastapi import Cookie, FastAPI, Query, Response
+from fastapi import Cookie, FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from .games.maumau import MauMau
 from .names import new_name
@@ -14,6 +15,17 @@ from .store import Store
 
 app = FastAPI()
 store = Store()
+
+
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+
+def to_svg(value):
+    value = value.replace("-", "_").lower()
+    return f"white_{value}.svg"
+
+
+templates.env.filters["to_svg"] = to_svg
 
 
 def create_user():
@@ -34,6 +46,9 @@ class Game:
     instance: Optional[Union[MauMau]] = None
     modified: Optional[str] = None
 
+    def serialize(self):
+        return {k: v for k, v in self.__dict__.items() if k != "instance"}
+
 
 async def load_game(name: str):
     _game = await store.load(name)
@@ -53,7 +68,7 @@ async def load_game(name: str):
 
 @app.get("/new/{kind}")
 @app.get("/new")
-async def new(
+async def game_new(
     kind: Optional[GameKind] = Query(None),
     user_id: Union[str, None] = Cookie(default=create_user()),
 ):
@@ -70,21 +85,22 @@ async def new(
     return response
 
 
-@app.get("/games")
-async def games():
+@app.get("/games", response_class=HTMLResponse)
+async def games(request: Request):
     all_games = [i.name for i in await store.keys()]
-    active_games = [(k, hasattr(v, "instance")) for k, v in store.game_states.items()]
-    return HTMLResponse(
-        "games found:<br/><ul><li>"
-        + "<li>".join([f'<a href="/{i}">{i}</a>' for i in all_games])
-        + "</ul>active games:<ul><li>"
-        + "<li>".join([f'<a href="/{i}">{i}</a> (started: {j})' for i, j in active_games])
-        + '</ul><br/>create a <a href="/new">new game</a>'
+    active_games = {
+        k: store.get(k, "instance") is not None for k in store.game_states.keys()
+    }
+    return templates.TemplateResponse(
+        "games.html",
+        {"request": request, "all_games": all_games, "active_games": active_games},
     )
 
 
 @app.get("/{name}/start")
-async def start(name: str, user_id: Union[str, None] = Cookie(default=create_user())):
+async def game_start(
+    name: str, user_id: Union[str, None] = Cookie(default=create_user())
+):
     game = await load_game(name)
     if game:
         if user_id == game.host:
@@ -107,7 +123,9 @@ async def start(name: str, user_id: Union[str, None] = Cookie(default=create_use
 
 
 @app.get("/{name}/join")
-async def join(name: str, user_id: Union[str, None] = Cookie(default=create_user())):
+async def game_join(
+    name: str, user_id: Union[str, None] = Cookie(default=create_user())
+):
     game = await load_game(name)
     if game:
         if game.instance:
@@ -126,15 +144,32 @@ async def join(name: str, user_id: Union[str, None] = Cookie(default=create_user
 
 
 @app.get("/{name}")
-async def update(
-    name, response: Response, user_id: Union[str, None] = Cookie(default=create_user())
+async def game_index(
+    name,
+    request: Request,
+    response: Response,
+    action: Union[str, None] = None,
+    card: Union[str, None] = None,
+    user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
     if game:
-        # await store.save(name, game)
-
         if game.instance:
-            return game.instance.status(user_id)
+            r = {}
+            if action:
+                r = game.instance.action(action=action, card=card, player_id=user_id)
+                await store.save(name, game)
+
+            return templates.TemplateResponse(
+                "game_state.html",
+                {
+                    "request": request,
+                    "you": user_id,
+                    "state": game.instance.status(user_id),
+                    "name": name,
+                    "msg": r.get("msg", ""),
+                },
+            )
 
         if user_id in game.players:
             user_msg = "you are in this game"
@@ -156,6 +191,9 @@ async def index():
     return "nothing to see"
 
 
+app.mount(
+    "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
+)
 app.mount(
     "/assets", StaticFiles(directory=Path(__file__).parent / "assets"), name="assets"
 )
