@@ -2,13 +2,13 @@ import random
 
 import pytest
 
-from .maumau import Game
+from .maumau import MauMau
 
 
 @pytest.fixture
 def default_game():
     random.seed(2)
-    return Game("g1", ["p1", "p2"])
+    return MauMau("g1", ["p1", "p2"])
 
 
 def test_new(default_game):

@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass, field
 from functools import cache
+from typing import Optional
 
 
 @dataclass
@@ -10,12 +11,17 @@ class Player:
     in_flow: list[str] = field(default_factory=list)
 
 
-class Game:
-    deck = ["7", "8", "9", "10", "J", "Q", "K", "A"]
-    suites = ["H", "D", "S", "C"]
+class MauMau:
+    deck: list[str] = ["7", "8", "9", "10", "J", "Q", "K", "A"]
+    suites: list[str] = ["H", "D", "S", "C"]
 
-    players = {}
-    next_player_take_cards = 0
+    # internal state
+    stack: list[str] = []
+    playing_stack: list[str] = []
+    players: dict[str] = {}
+    player_list: list[str] = []
+    next_player_take_cards: int = 0
+    current_player: Optional[str] = None
 
     def __init__(self, name, players):
         self.name = name
@@ -23,18 +29,43 @@ class Game:
             list(self.create_stack()), k=len(self.deck) * len(self.suites)
         )
 
-        self.player_list = players
-        for player in self.player_list:
+        for player in players:
             self.players[player] = Player(id=player, cards=list(self.pick_cards(num=5)))
         self.playing_stack = list(self.pick_cards(1))
 
+        # FIXME: find a way to user self.players instead
+        self.player_list = players
         # random order players
         random.shuffle(self.player_list)
         self.current_player = self.player_list[0]
 
+    def serialize(self):
+        return {
+            "stack": self.stack,
+            "playing_stack": self.playing_stack,
+            "current_player": self.current_player,
+            "players": {k: v.__dict__ for k, v in self.players.items()},
+            "player_list": self.player_list,
+            "next_player_take_cards": self.next_player_take_cards,
+        }
+
+    def load(self, data):
+        for name in [
+            "stack",
+            "playing_stack",
+            "current_player",
+            "player_list",
+            "next_player_take_cards",
+        ]:
+            setattr(self, name, data.get(name))
+        self.players = {}
+        print(data.get("players").items())
+        for k, v in data.get("players").items():
+            self.players[k] = Player(**v)
+
     @property
     @cache
-    def allowed_cards(self):
+    def allowed_cards(self) -> list[str]:
         return list(self.create_stack())
 
     def create_stack(self):
@@ -51,14 +82,19 @@ class Game:
             card = self.stack.pop()
             yield card
 
-    def status(self, player):
+    def status(self, player: Optional[str] = None):
         d = {
             "players": self.player_list,
             "current_player": self.current_player,
             "deck_top": self.playing_stack[-1],
-            "your_turn": True if self.current_player == player else False,
-            "your_deck": self.players[player].cards,
         }
+        if player and player in self.players:
+            d.update(
+                {
+                    "your_turn": True if self.current_player == player else False,
+                    "your_deck": self.players[player].cards,
+                }
+            )
         if self.check_win():
             d["winner"] = self.check_win()["winner"]
         return d
