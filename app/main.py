@@ -1,10 +1,12 @@
 import enum
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Union
 
 from fastapi import Cookie, FastAPI, Query, Response
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .games.maumau import MauMau
 from .names import new_name
@@ -148,3 +150,8 @@ async def update(
 @app.get("/")
 async def index():
     return "nothing to see"
+
+
+app.mount(
+    "/assets", StaticFiles(directory=Path(__file__).parent / "assets"), name="assets"
+)

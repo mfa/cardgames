@@ -30,3 +30,8 @@ fly ssh console
 # create folder
 mkdir -p /data/store
 ```
+
+
+### source for assets
+
+cards: http://nicubunu.ro/cards/ (public domain)
