@@ -73,10 +73,13 @@ async def new(
 
 @app.get("/games")
 async def games():
-    games = [i.name for i in await store.keys()]
+    all_games = [i.name for i in await store.keys()]
+    active_games = [(k, hasattr(v, "instance")) for k, v in store.game_states.items()]
     return HTMLResponse(
         "games found:<br/><ul><li>"
-        + "<li>".join([f'<a href="/{i}">{i}</a>' for i in games])
+        + "<li>".join([f'<a href="/{i}">{i}</a>' for i in all_games])
+        + "</ul>active games:<ul><li>"
+        + "<li>".join([f'<a href="/{i}">{i}</a> (started: {j})' for i, j in active_games])
         + '</ul><br/>create a <a href="/new">new game</a>'
     )
 
