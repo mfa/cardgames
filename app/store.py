@@ -17,17 +17,25 @@ class Store:
     async def keys(self):
         return self.path.glob("*")
 
-    async def save(self, name, state):
+    async def save(self, name, game):
         ts = datetime.datetime.utcnow().timestamp()
-        state["modified"] = ts
-        self.game_states[name] = state
+        game.modified = ts
+        self.game_states[name] = game
+
+        print(game)
+
+        g = game.__dict__
+        # save serialized state, not instance
+        if g["instance"]:
+            g["state"] = game.instance.serialize()
+            del g["instance"]
 
         _path = self.path / name
         _path.mkdir(exist_ok=True, parents=True)
 
         fn = _path / f"{ts}.json"
         async with aiofiles.open(fn, "w") as fp:
-            await fp.write(json.dumps(state))
+            await fp.write(json.dumps(g))
             # symlink to current version
             _link = _path / "default.json"
             _link.unlink(missing_ok=True)
