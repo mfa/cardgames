@@ -59,7 +59,6 @@ class MauMau:
         ]:
             setattr(self, name, data.get(name))
         self.players = {}
-        print(data.get("players").items())
         for k, v in data.get("players").items():
             self.players[k] = Player(**v)
 
