@@ -54,3 +54,7 @@ class Store:
                 self.game_states[name] = data
                 return data
         return
+
+    def set(self, name, attribute, value):
+        self.game_states[name][attribute] = value
+        return
