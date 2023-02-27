@@ -131,6 +131,8 @@ async def game_join(
     if game:
         if game.instance:
             return "game already started"
+        if len(game.players) == 5:
+            return "max players for this game is 5."
 
         if user_id not in game.players:
             game.players.append(user_id)
