@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from fastapi import Cookie, FastAPI, Query, Request, Response
+
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
