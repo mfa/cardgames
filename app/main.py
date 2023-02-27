@@ -222,7 +222,7 @@ async def game_action(
             "partials/action_area.html",
             {
                 "request": request,
-                "you": user_id,
+                "user_id": user_id,
                 "state": game.instance.status(user_id),
                 "name": name,
                 "msg": r.get("msg", ""),

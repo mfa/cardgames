@@ -1,4 +1,5 @@
-  <h4 class="is-size-4">Your Cards - {{ you }}</h4>
+{% if user_id in state.players %}
+    <h4 class="is-size-4">Your Cards - {{ user_id }}</h4>
     {% for card in state.your_deck %}
       {% if not state.your_in_flow %}
          <a hx-get="/{{ name }}/action?action=play_card&card={{ card }}" hx-target="#action-area">
@@ -23,3 +24,4 @@
     {% endif %}
 
     <div id="message">{{ msg }}</div>
+{% endif %}
