@@ -1,6 +1,5 @@
 import random
 
-import pytest
 from names import new_name
 
 

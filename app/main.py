@@ -1,5 +1,4 @@
 import enum
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
@@ -13,7 +12,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .games.maumau import MauMau
@@ -61,7 +60,7 @@ async def load_game(name: str):
         return _game
 
 
-@app.get("/games", response_class=HTMLResponse)
+@app.get("/games")
 async def games(request: Request):
     all_games = [i.name for i in await store.keys()]
     active_games = {
