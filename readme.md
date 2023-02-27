@@ -1,10 +1,12 @@
-## (private) cardgames project
+## cardgames project
 
 ### features
 
 - video-conference view (for screen share)
 - every client is an agent
 - a client can be a human or code
+
+deployed version: <https://cards.with.cress.space/>
 
 ### run locally
 
