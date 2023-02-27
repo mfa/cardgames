@@ -1,8 +1,4 @@
-import asyncio
-import datetime
 import enum
-import time
-import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,29 +15,16 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from .games.maumau import MauMau
 from .names import new_name
 from .store import Store
-from .ws import WebsocketConnectionManager
+from .utils import WebsocketConnectionManager, create_user, gen_templates
 
 app = FastAPI()
 store = Store()
 ws_manager = WebsocketConnectionManager()
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
-
-
-def to_svg(value):
-    value = value.replace("-", "_").lower()
-    return f"white_{value}.svg"
-
-
-templates.env.filters["to_svg"] = to_svg
-
-
-def create_user():
-    return str(uuid.uuid4())
+templates = gen_templates()
 
 
 class GameKind(str, enum.Enum):
@@ -133,10 +116,9 @@ async def game_start(
             else:
                 if game.kind == "maumau":
                     game.instance = MauMau(game.name, game.players)
+                    await store.save(name, game)
                 else:
                     msg = "only maumau supported atm"
-        if not msg:
-            await store.save(name, game)
 
     response = templates.TemplateResponse(
         "game_meta.html",
@@ -197,7 +179,7 @@ async def status_html(name, user_id):
     game = await load_game(name)
     if game and game.instance:
         template = templates.env.get_template("partials/status.html")
-        return template.render(**{"state": game.instance.status(user_id)})
+        return template.render(state=game.instance.status(user_id))
     return ""
 
 
@@ -238,18 +220,17 @@ async def game_index(
     user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
-    if game:
-        if game.instance:
-            await ws_manager.broadcast(await status_html(name, user_id), name)
-            return templates.TemplateResponse(
-                "game_state.html",
-                {
-                    "request": request,
-                    "you": user_id,
-                    "state": game.instance.status(user_id),
-                    "name": name,
-                },
-            )
+    if game and game.instance:
+        await ws_manager.broadcast(await status_html(name, user_id), name)
+        return templates.TemplateResponse(
+            "game_state.html",
+            {
+                "request": request,
+                "you": user_id,
+                "state": game.instance.status(user_id),
+                "name": name,
+            },
+        )
     return "game not found"
 
 
