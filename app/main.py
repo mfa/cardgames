@@ -17,7 +17,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -78,25 +78,6 @@ async def load_game(name: str):
         return _game
 
 
-@app.get("/new/{kind}")
-@app.get("/new")
-async def game_new(
-    kind: Optional[GameKind] = Query(None),
-    user_id: Union[str, None] = Cookie(default=create_user()),
-):
-    name = new_name()
-    kind = kind if kind else GameKind.maumau
-    game = Game(name=name, players=[user_id], kind=kind, host=user_id)
-    await store.save(name, game)
-
-    response = HTMLResponse(
-        "new game created - link to add other players: "
-        + f'<a href="/{name}/join">{name}</a><br/> you are: {user_id}<br/>Kind of game: {kind}'
-    )
-    response.set_cookie(key="user_id", value=user_id)
-    return response
-
-
 @app.get("/games", response_class=HTMLResponse)
 async def games(request: Request):
     all_games = [i.name for i in await store.keys()]
@@ -109,52 +90,98 @@ async def games(request: Request):
     )
 
 
+@app.get("/new/{kind}")
+@app.get("/new")
+async def game_new(
+    request: Request,
+    kind: Optional[GameKind] = Query(None),
+    user_id: Union[str, None] = Cookie(default=create_user()),
+):
+    name = new_name()
+    kind = kind if kind else GameKind.maumau
+    game = Game(name=name, players=[user_id], kind=kind, host=user_id)
+    await store.save(name, game)
+
+    response = templates.TemplateResponse(
+        "game_meta.html",
+        {
+            "request": request,
+            "msg": "new game created",
+            "user_id": user_id,
+            "name": name,
+            "game": game,
+        },
+    )
+    response.set_cookie(key="user_id", value=user_id)
+    return response
+
+
 @app.get("/{name}/start")
 async def game_start(
-    name: str, user_id: Union[str, None] = Cookie(default=create_user())
+    name: str,
+    request: Request,
+    user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
+    msg = ""
     if game:
+        if game.instance:
+            return RedirectResponse(f"/{name}")
         if user_id == game.host:
-            if game.instance:
-                return "game already started"
             if len(game.players) < 2:
-                return "not enough players to start game"
-            if game.kind == "maumau":
-                game.instance = MauMau(game.name, game.players)
+                msg = "not enough players to start game"
             else:
-                return "only maumau supported atm"
-        await store.save(name, game)
+                if game.kind == "maumau":
+                    game.instance = MauMau(game.name, game.players)
+                else:
+                    msg = "only maumau supported atm"
+        if not msg:
+            await store.save(name, game)
 
-        response = HTMLResponse(
-            f"{name} found, players: {game.players}<br/> you are: {user_id}<br/>game started"
-        )
-        response.set_cookie(key="user_id", value=user_id)
-        return response
-    return "game not found"
+    response = templates.TemplateResponse(
+        "game_meta.html",
+        {
+            "request": request,
+            "user_id": user_id,
+            "name": name,
+            "msg": msg,
+            "game": game,
+        },
+    )
+    response.set_cookie(key="user_id", value=user_id)
+    return response
 
 
 @app.get("/{name}/join")
 async def game_join(
-    name: str, user_id: Union[str, None] = Cookie(default=create_user())
+    name: str,
+    request: Request,
+    user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
+    msg = ""
     if game:
         if game.instance:
-            return "game already started"
-        if len(game.players) == 5:
-            return "max players for this game is 5."
+            return RedirectResponse(f"/{name}")
+        elif len(game.players) == 5:
+            msg = "max players for this game is 5."
+        else:
+            if user_id not in game.players:
+                game.players.append(user_id)
+            await store.save(name, game)
 
-        if user_id not in game.players:
-            game.players.append(user_id)
-        await store.save(name, game)
-
-        response = HTMLResponse(
-            f"{name} found, players: {game.players}<br/> you are: {user_id}"
-        )
-        response.set_cookie(key="user_id", value=user_id)
-        return response
-    return "game not found"
+    response = templates.TemplateResponse(
+        "game_meta.html",
+        {
+            "request": request,
+            "user_id": user_id,
+            "name": name,
+            "msg": msg,
+            "game": game,
+        },
+    )
+    response.set_cookie(key="user_id", value=user_id)
+    return response
 
 
 @app.get("/{name}/status")
@@ -223,19 +250,6 @@ async def game_index(
                     "name": name,
                 },
             )
-
-        if user_id in game.players:
-            user_msg = "you are in this game"
-        else:
-            user_msg = f'<br/><a href="/{name}/join">join this game</a>'
-        if user_id == game.host:
-            user_msg = f'<br/>you are game host, do you want to <a href="/{name}/start">start this game</a>'
-
-        return HTMLResponse(
-            f"{name} found, players: {game.players}<br/>"
-            + f"last_change: {game.modified}<br/>"
-            + user_msg
-        )
     return "game not found"
 
 
