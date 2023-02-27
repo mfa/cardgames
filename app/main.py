@@ -1,11 +1,22 @@
+import asyncio
+import datetime
 import enum
+import time
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
 
-from fastapi import Cookie, FastAPI, Query, Request, Response
-
+from fastapi import (
+    Cookie,
+    FastAPI,
+    Query,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -13,11 +24,11 @@ from fastapi.templating import Jinja2Templates
 from .games.maumau import MauMau
 from .names import new_name
 from .store import Store
+from .ws import WebsocketConnectionManager
 
 app = FastAPI()
 store = Store()
-
-
+ws_manager = WebsocketConnectionManager()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
@@ -146,8 +157,25 @@ async def game_join(
     return "game not found"
 
 
-@app.get("/{name}")
-async def game_index(
+@app.get("/{name}/status")
+async def trigger_game_status(
+    name: str,
+    user_id: Union[str, None] = Cookie(default=create_user()),
+):
+    await ws_manager.broadcast(await status_html(name, user_id), name)
+    return ""
+
+
+async def status_html(name, user_id):
+    game = await load_game(name)
+    if game and game.instance:
+        template = templates.env.get_template("partials/status.html")
+        return template.render(**{"state": game.instance.status(user_id)})
+    return ""
+
+
+@app.get("/{name}/action")
+async def game_action(
     name,
     request: Request,
     response: Response,
@@ -156,13 +184,36 @@ async def game_index(
     user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
+    if game and game.instance:
+        r = {}
+        if action:
+            r = game.instance.action(action=action, card=card, player_id=user_id)
+            await store.save(name, game)
+            await ws_manager.broadcast(await status_html(name, user_id), name)
+
+        return templates.TemplateResponse(
+            "partials/action_area.html",
+            {
+                "request": request,
+                "you": user_id,
+                "state": game.instance.status(user_id),
+                "name": name,
+                "msg": r.get("msg", ""),
+            },
+        )
+
+
+@app.get("/{name}")
+async def game_index(
+    name,
+    request: Request,
+    response: Response,
+    user_id: Union[str, None] = Cookie(default=create_user()),
+):
+    game = await load_game(name)
     if game:
         if game.instance:
-            r = {}
-            if action:
-                r = game.instance.action(action=action, card=card, player_id=user_id)
-                await store.save(name, game)
-
+            await ws_manager.broadcast(await status_html(name, user_id), name)
             return templates.TemplateResponse(
                 "game_state.html",
                 {
@@ -170,7 +221,6 @@ async def game_index(
                     "you": user_id,
                     "state": game.instance.status(user_id),
                     "name": name,
-                    "msg": r.get("msg", ""),
                 },
             )
 
@@ -187,6 +237,20 @@ async def game_index(
             + user_msg
         )
     return "game not found"
+
+
+@app.websocket("/ws/{game}")
+async def websocket_endpoint(
+    game: str,
+    websocket: WebSocket,
+):
+    await ws_manager.connect(websocket, game)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(data)
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, game)
 
 
 @app.get("/")

@@ -1,0 +1,25 @@
+<div id="top-card"><img src="/assets/white/{{ state.deck_top|to_svg }}" width="100px"/></div>
+
+<div id="players">
+  {% for player in state.players %}
+  <div class="columns">
+    <div class="column is-2">
+      {% if state.current_player == player %}<strong>current&nbsp;turn</strong>{% endif %}
+    </div>
+    <div class="column is-6">
+      {{ player }}
+    </div>
+    <div class="column is-4">
+      {% for i in range(state.num_cards[player]) %}
+      <img src="/assets/backs/back08.svg" width="25px"/ >
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if state.winner %}
+<div id="winner">
+  <h3 class="is-size-3">Game over - Winner: {{ state.winner }}</h3>
+</div>
+{% endif %}

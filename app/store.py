@@ -25,7 +25,6 @@ class Store:
         self.game_states[name] = game
 
         g = game.serialize()
-        print(g)
         # save serialized state, not instance
         if game.instance:
             g["state"] = game.instance.serialize()

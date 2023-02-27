@@ -1,0 +1,25 @@
+  <h4 class="is-size-4">Your Cards - {{ you }}</h4>
+    {% for card in state.your_deck %}
+      {% if not state.your_in_flow %}
+         <a hx-get="/{{ name }}/action?action=play_card&card={{ card }}" hx-target="#action-area">
+      {% endif %}
+      <img src="/assets/white/{{ card|to_svg }}" width="100px"/>
+      {% if not state.your_in_flow %}
+      </a>
+      {% endif %}
+    {% endfor %}
+
+    <h4 class="is-size-4">Commands</h4>
+    {% if not state.your_in_flow %}
+    <a class="button is-primary" hx-get="/{{ name }}/action?action=take_card"
+       hx-target="#action-area">take card</a>
+    {% else %}
+      {% for card in state.your_in_flow %}
+        <a hx-get="/{{ name }}/action?action=play_card&card={{ card }}" hx-target="#action-area">
+          <img src="/assets/white/{{ card|to_svg }}" width="100px"/>
+        </a>
+      {% endfor %}
+      <a class="button is-primary" hx-get="/{{ name }}/action?action=keep_card" hx-target="#action-area">keep card</a>
+    {% endif %}
+
+    <div id="message">{{ msg }}</div>
