@@ -2,7 +2,7 @@ import enum
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from fastapi import Cookie, FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse
@@ -39,7 +39,7 @@ class GameKind(str, enum.Enum):
 @dataclass
 class Game:
     name: str
-    players: list[str]
+    players: List[str]
     kind: GameKind
     host: str
     state: Optional[dict] = None

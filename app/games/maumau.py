@@ -1,25 +1,25 @@
 import random
 from dataclasses import dataclass, field
-from functools import cache
-from typing import Optional
+from functools import lru_cache
+from typing import Dict, List, Optional
 
 
 @dataclass
 class Player:
     id: str
-    cards: list[str]
-    in_flow: list[str] = field(default_factory=list)
+    cards: List[str]
+    in_flow: List[str] = field(default_factory=list)
 
 
 class MauMau:
-    deck: list[str] = ["7", "8", "9", "10", "J", "Q", "K", "A"]
-    suites: list[str] = ["H", "D", "S", "C"]
+    deck: List[str] = ["7", "8", "9", "10", "J", "Q", "K", "A"]
+    suites: List[str] = ["H", "D", "S", "C"]
 
     # internal state
-    stack: list[str] = []
-    playing_stack: list[str] = []
-    players: dict[str] = {}
-    player_list: list[str] = []
+    stack: List[str] = []
+    playing_stack: List[str] = []
+    players: Dict[str, Player] = {}
+    player_list: List[str] = []
     next_player_take_cards: int = 0
     current_player: Optional[str] = None
 
@@ -63,8 +63,8 @@ class MauMau:
             self.players[k] = Player(**v)
 
     @property
-    @cache
-    def allowed_cards(self) -> list[str]:
+    @lru_cache
+    def allowed_cards(self) -> List[str]:
         return list(self.create_stack())
 
     def create_stack(self):
