@@ -1,5 +1,7 @@
 ## cardgames project
 
+[![Run Tests](https://github.com/mfa/cardgames/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/mfa/cardgames/actions/workflows/tests.yml)
+
 ### features
 
 - video-conference view (for screen share)
