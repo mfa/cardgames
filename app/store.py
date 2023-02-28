@@ -60,4 +60,5 @@ class Store:
         return
 
     def get(self, name, attribute):
-        return self.game_states.get(name, {}).get(attribute)
+        if self.game_states.get(name) and hasattr(self.game_states.get(name), attribute):
+            return getattr(self.game_states.get(name), attribute)
