@@ -2,6 +2,5 @@ aiofiles
 fastapi
 gunicorn
 jinja2
-mypy
 uvicorn
 websockets
