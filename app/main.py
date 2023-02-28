@@ -219,17 +219,19 @@ async def game_index(
     user_id: Union[str, None] = Cookie(default=create_user()),
 ):
     game = await load_game(name)
-    if game and game.instance:
-        await ws_manager.broadcast(await status_html(name, user_id), name)
-        return templates.TemplateResponse(
-            "game_state.html",
-            {
-                "request": request,
-                "you": user_id,
-                "state": game.instance.status(user_id),
-                "name": name,
-            },
-        )
+    if game:
+        if game.instance:
+            await ws_manager.broadcast(await status_html(name, user_id), name)
+            return templates.TemplateResponse(
+                "game_state.html",
+                {
+                    "request": request,
+                    "you": user_id,
+                    "state": game.instance.status(user_id),
+                    "name": name,
+                },
+            )
+        return "game not started, yet"
     return "game not found"
 
 
