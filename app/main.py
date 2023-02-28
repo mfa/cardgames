@@ -77,8 +77,10 @@ async def games(request: Request):
 async def game_new(
     request: Request,
     kind: Optional[GameKind] = Query(None),
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     name = new_name()
     kind = kind if kind else GameKind.maumau
     game = Game(name=name, players=[user_id], kind=kind, host=user_id)
@@ -102,8 +104,10 @@ async def game_new(
 async def game_start(
     name: str,
     request: Request,
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     game = await load_game(name)
     msg = ""
     if game:
@@ -137,8 +141,10 @@ async def game_start(
 async def game_join(
     name: str,
     request: Request,
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     game = await load_game(name)
     msg = ""
     if game:
@@ -168,8 +174,10 @@ async def game_join(
 @app.get("/{name}/status")
 async def trigger_game_status(
     name: str,
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     await ws_manager.broadcast(await status_html(name, user_id), name)
     return ""
 
@@ -189,8 +197,10 @@ async def game_action(
     response: Response,
     action: Union[str, None] = None,
     card: Union[str, None] = None,
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     game = await load_game(name)
     if game and game.instance:
         r = {}
@@ -216,8 +226,10 @@ async def game_index(
     name,
     request: Request,
     response: Response,
-    user_id: Union[str, None] = Cookie(default=create_user()),
+    user_id: Union[str, None] = Cookie(default=None),
 ):
+    if not user_id:
+        user_id = create_user()
     game = await load_game(name)
     if game:
         if game.instance:
