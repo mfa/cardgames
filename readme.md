@@ -35,6 +35,11 @@ fly ssh console
 mkdir -p /data/store
 ```
 
+deploy:
+```
+fly deploy --local-only
+```
+
 
 ### source for assets
 
