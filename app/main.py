@@ -150,7 +150,7 @@ async def game_join(
     if game:
         if game.instance:
             return RedirectResponse(f"/{name}")
-        elif len(game.players) == 5:
+        elif len(game.players) > 5:
             msg = "max players for this game is 5."
         else:
             if user_id not in game.players:
