@@ -11,16 +11,15 @@ def load(name) -> List[str]:
     return json.load(fn.open()).get(name)
 
 
-NUMBERS = load("numbers")
 ANIMALS = load("animals")
 COLORS = load("colors")
 
 
 def new_name() -> str:
     return (
-        random.choice(COLORS).replace(" ", "-")
+        random.choice(COLORS)
         + "-"
-        + random.choice(ANIMALS).replace(" ", "-").lower()
+        + random.choice(ANIMALS)
         + "-"
         + str(random.randint(1, 1000))
     )
