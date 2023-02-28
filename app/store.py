@@ -60,4 +60,4 @@ class Store:
         return
 
     def get(self, name, attribute):
-        return self.game_states[name].get(attribute)
+        return self.game_states.get(name, {}).get(attribute)
